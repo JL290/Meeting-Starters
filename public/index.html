@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tap Sprint</title>
+<style>
+:root{--bg:#f4f1ea;--fg:#1c1b19;--track:#d9d3c5;--card:#fffc;--muted:#6b675d;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--fg:#f1efe9;--track:#2b2a27;--card:#000c;--muted:#a8a396}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;user-select:none;-webkit-user-select:none;overflow:hidden;padding:env(safe-area-inset-top,0) env(safe-area-inset-right,0) env(safe-area-inset-bottom,0) env(safe-area-inset-left,0)}
+.view{display:none;height:100%;flex-direction:column}
+.view.on{display:flex}
+button{font:inherit;cursor:pointer}
+.btn{border:0;border-radius:14px;background:var(--fg);color:var(--bg);font-size:18px;font-weight:700;padding:14px 26px}
+.btn.ghost{background:transparent;color:var(--fg);border:2px solid var(--fg)}
+.btn:disabled{opacity:.4}
+.center{align-items:center;justify-content:center;text-align:center;gap:14px;padding:24px}
+h1{margin:0;font-size:30px}
+p{margin:0;color:var(--muted)}
+input{font:inherit;font-size:20px;padding:12px 14px;border-radius:12px;border:2px solid var(--fg);background:var(--bg);color:var(--fg);text-align:center;width:min(260px,80vw);user-select:text;-webkit-user-select:text;text-transform:none}
+#codein{text-transform:uppercase;letter-spacing:6px}
+/* host */
+#host{padding:12px 16px;gap:12px}
+.hrow{flex:1;display:flex;gap:16px;min-height:0}
+#lanes{flex:1;display:flex;flex-direction:column;gap:8px;justify-content:center;min-width:0}
+.lane{position:relative;flex:1;max-height:84px;background:var(--track);border-radius:10px;overflow:hidden}
+.lane::after{content:"";position:absolute;right:0;top:0;bottom:0;width:14px;background:repeating-conic-gradient(var(--fg) 0 25%,var(--bg) 0 50%) 0 0/7px 7px}
+.tag{position:absolute;left:8px;top:3px;font-size:13px;font-weight:800}
+.runner{position:absolute;top:50%;left:0;font-size:34px;line-height:1;will-change:transform}
+.runner span{display:inline-block;transform:scaleX(-1)}
+#side{width:230px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
+#qr{width:200px;height:200px;border-radius:12px;background:#fff;image-rendering:pixelated}
+#link{font-size:11px;word-break:break-all;color:var(--muted)}
+#code{font-size:34px;font-weight:900;letter-spacing:8px}
+#empty{color:var(--muted);text-align:center;padding:20px}
+#banner{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--card);backdrop-filter:blur(4px);text-align:center;padding:20px}
+#banner.on{display:flex}
+#bigtxt{font-size:84px;font-weight:900}
+@media (max-width:640px){.hrow{flex-direction:column-reverse}#side{width:100%}#qr{width:130px;height:130px}}
+/* player */
+#player{padding:12px 14px 14px;gap:10px}
+#pstatus{font-size:20px;font-weight:800;text-align:center;min-height:30px}
+#ptrack{position:relative;height:60px;background:var(--track);border-radius:12px;overflow:hidden}
+#ptrack::after{content:"";position:absolute;right:0;top:0;bottom:0;width:14px;background:repeating-conic-gradient(var(--fg) 0 25%,var(--bg) 0 50%) 0 0/7px 7px}
+#prun{position:absolute;top:50%;left:0;font-size:34px;line-height:1}
+#prun span{display:inline-block;transform:scaleX(-1)}
+#prank{text-align:center;color:var(--muted);font-size:14px;min-height:18px}
+#pad{flex:1;border:0;border-radius:24px;color:#fff;font-size:34px;font-weight:900;touch-action:none;transition:transform .05s,opacity .2s}
+#pad.hit{transform:scale(.97);filter:brightness(1.15)}
+#pad:disabled{opacity:.35}
+</style>
+</head>
+<body>
+
+<section id="menu" class="view center on">
+  <h1>🏁 Tap Sprint</h1>
+  <p>Phones are the controllers. Tap fast to sprint!</p>
+  <button class="btn" id="bhost">Host on the big screen</button>
+  <p>or join a race</p>
+  <input id="codein" maxlength="4" placeholder="CODE" autocomplete="off" autocapitalize="characters">
+  <button class="btn ghost" id="bjoin">Join</button>
+</section>
+
+<section id="host" class="view">
+  <div class="hrow">
+    <div id="lanes"><div id="empty">Scan the QR code with your phone to join.<br>Runners will appear here.</div></div>
+    <div id="side">
+      <strong>Scan to join</strong>
+      <img id="qr" alt="QR code to join the race">
+      <div id="code"></div>
+      <div id="link"></div>
+      <div id="count" style="font-weight:700">0 runners</div>
+      <button class="btn" id="start" disabled>Start race</button>
+    </div>
+  </div>
+  <div id="banner"><div id="bigtxt"></div><div id="bigsub" style="font-size:26px;font-weight:800"></div><button class="btn" id="again" style="display:none">Race again</button></div>
+</section>
+
+<section id="join" class="view center">
+  <h1>🏃 Join the race</h1>
+  <p id="jroom"></p>
+  <input id="name" maxlength="12" placeholder="Your name" autocomplete="off">
+  <button class="btn" id="dojoin">I’m in</button>
+  <p id="jmsg"></p>
+</section>
+
+<section id="player" class="view">
+  <div id="pstatus"></div>
+  <div id="ptrack"><div id="prun"><span>🏃</span></div></div>
+  <div id="prank"></div>
+  <button id="pad">TAP!</button>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script>
+(function(){
+var PAL=["#e5484d","#3b82f6","#16a34a","#f59e0b","#a855f7","#06b6d4","#ec4899","#84cc16"];
+var $=function(i){return document.getElementById(i)};
+var q=new URLSearchParams(location.search);
+var CODE=(q.get("room")||"").toUpperCase().replace(/[^A-Z]/g,"").slice(0,4);
+
+function show(id){["menu","host","join","player"].forEach(function(v){$(v).classList.toggle("on",v===id)})}
+function post(url,body){
+  return fetch(url,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body),keepalive:true})
+    .then(function(r){return r.json()}).catch(function(){return null});
+}
+function rand(){return Math.random().toString(36).slice(2,10)+Date.now().toString(36)}
+
+if(CODE.length===4){$("jroom").textContent="Room "+CODE;show("join")}
+$("bhost").onclick=startHost;
+$("bjoin").onclick=function(){
+  var c=$("codein").value.toUpperCase().replace(/[^A-Z]/g,"");
+  if(c.length!==4){$("codein").focus();return}
+  CODE=c;$("jroom").textContent="Room "+CODE;show("join");
+};
+
+/* ============== HOST ============== */
+var HOST=null,lanes={},hprev=null,hepoch=-1,lastT=0,flashTimer=null;
+function startHost(){
+  show("host");
+  var saved=null;
+  try{saved=JSON.parse(sessionStorage.getItem("ts_host"))}catch(e){}
+  if(saved&&saved.code)connectHost(saved);else createRoom();
+}
+function createRoom(){
+  fetch("/api/create").then(function(r){return r.json()}).then(function(j){
+    if(!j.code)throw 0;
+    sessionStorage.setItem("ts_host",JSON.stringify(j));connectHost(j);
+  }).catch(function(){$("empty").textContent="Could not reach the game server. Retrying…";setTimeout(createRoom,2000)});
+}
+function connectHost(h){
+  HOST=h;
+  var url=location.origin+"/?room="+h.code;
+  $("code").textContent=h.code;
+  $("link").textContent=location.host+"/?room="+h.code;
+  try{var qr=qrcode(0,"M");qr.addData(url);qr.make();$("qr").src=qr.createDataURL(6,2)}catch(e){$("qr").style.display="none"}
+  var es=new EventSource("/api/events?room="+h.code+"&id=host");
+  es.addEventListener("state",function(e){hostState(JSON.parse(e.data))});
+  es.onerror=function(){
+    if(es.readyState===2){sessionStorage.removeItem("ts_host");for(var k in lanes){lanes[k].el.remove()}lanes={};createRoom()}
+  };
+  lastT=performance.now();requestAnimationFrame(hloop);
+}
+function hostState(s){
+  var seen={};
+  if(s.epoch!==hepoch){hepoch=s.epoch;for(var k0 in lanes)lanes[k0].disp=0}
+  s.players.forEach(function(p){
+    seen[p.id]=1;
+    var L=lanes[p.id];
+    if(!L){
+      var d=document.createElement("div");d.className="lane";
+      d.innerHTML='<div class="tag"></div><div class="runner"><span>🏃</span></div>';
+      $("lanes").appendChild(d);
+      L=lanes[p.id]={el:d,tag:d.querySelector(".tag"),run:d.querySelector(".runner"),disp:0,pos:0};
+    }
+    var c=PAL[p.ci]||PAL[0];
+    L.tag.textContent=p.name;L.tag.style.color=c;L.run.style.color=c;
+    L.pos=(s.phase==="run"||s.phase==="done")?p.pos:0;
+  });
+  Object.keys(lanes).forEach(function(k){if(!seen[k]){lanes[k].el.remove();delete lanes[k]}});
+  var n=s.players.length;
+  $("empty").style.display=n?"none":"block";
+  $("count").textContent=n+(n===1?" runner":" runners");
+  $("start").disabled=!n||s.phase==="count"||s.phase==="run";
+  var b=$("banner");
+  if(s.phase==="count"){
+    clearTimeout(flashTimer);
+    b.classList.add("on");$("bigtxt").textContent=s.n||"";$("bigsub").textContent="Get ready…";$("again").style.display="none";
+  }else if(s.phase==="run"){
+    if(hprev==="count"){
+      $("bigtxt").textContent="GO!";$("bigsub").textContent="";
+      clearTimeout(flashTimer);flashTimer=setTimeout(function(){b.classList.remove("on")},500);
+    }
+  }else if(s.phase==="done"){
+    clearTimeout(flashTimer);
+    var w=s.players.filter(function(p){return p.id===s.winner})[0];
+    $("bigtxt").textContent="🏆";
+    $("bigsub").textContent=(w?w.name:"Someone")+" wins!";
+    $("bigsub").style.color=w?(PAL[w.ci]||PAL[0]):"";
+    $("again").style.display="";b.classList.add("on");
+  }else{b.classList.remove("on")}
+  hprev=s.phase;
+}
+function hloop(t){
+  var dt=Math.min((t-lastT)/1000,.1);lastT=t;
+  Object.keys(lanes).forEach(function(k){
+    var L=lanes[k];
+    L.disp+=(L.pos-L.disp)*Math.min(1,dt*12);
+    var w=L.el.clientWidth-44-L.run.clientWidth;
+    var bob=Math.sin(t/60)*Math.min(Math.abs(L.pos-L.disp),6)*1.2;
+    L.run.style.transform="translate("+(L.disp/100*Math.max(w,0))+"px,"+(-50-bob)+"%)";
+  });
+  requestAnimationFrame(hloop);
+}
+function begin(){if(HOST)post("/api/start",{room:HOST.code,token:HOST.token})}
+$("start").onclick=begin;
+$("again").onclick=begin;
+
+/* ============== PLAYER ============== */
+var ME={id:sessionStorage.getItem("ts_pid")||rand(),name:"Runner",ci:+sessionStorage.getItem("ts_ci"),pos:0,vel:0};
+if(!(ME.ci>=0&&ME.ci<8))ME.ci=Math.floor(Math.random()*8);
+sessionStorage.setItem("ts_pid",ME.id);sessionStorage.setItem("ts_ci",ME.ci);
+var saveName=sessionStorage.getItem("ts_name");if(saveName)$("name").value=saveName;
+var S=null,pphase=null,pepoch=-1,running=false,praf=0,pT=0,pl=0,first=true;
+
+$("dojoin").onclick=joinNow;
+$("name").addEventListener("keydown",function(e){if(e.key==="Enter")joinNow()});
+function joinNow(){
+  ME.name=($("name").value||"").trim().slice(0,12)||"Runner";
+  sessionStorage.setItem("ts_name",ME.name);
+  $("jmsg").textContent="Joining…";
+  post("/api/join",{room:CODE,id:ME.id,name:ME.name,ci:ME.ci}).then(function(r){
+    if(!r||!r.ok){$("jmsg").textContent=(r&&r.error==="room full")?"That room is full.":"Couldn’t join. Check the code and try again.";return}
+    startPlayer();
+  });
+}
+function startPlayer(){
+  show("player");
+  $("pad").style.background=PAL[ME.ci];$("prun").style.color=PAL[ME.ci];
+  var es=new EventSource("/api/events?room="+CODE+"&id="+ME.id);
+  es.addEventListener("state",function(e){onState(JSON.parse(e.data))});
+  es.onerror=function(){
+    if(es.readyState===2)$("pstatus").textContent="This room no longer exists.";
+    else if(!S)$("pstatus").textContent="Connecting…";
+  };
+  renderP();
+}
+function onState(s){
+  S=s;
+  var mine=s.players.filter(function(p){return p.id===ME.id})[0];
+  if(!mine){post("/api/join",{room:CODE,id:ME.id,name:ME.name,ci:ME.ci});return}
+  if(s.epoch!==pepoch){pepoch=s.epoch;me0();if(first&&s.phase==="run")ME.pos=mine.pos}
+  first=false;
+  if(s.phase==="run"&&pphase!=="run"&&mine.inRace&&ME.pos<100){
+    running=true;pT=performance.now();pl=0;cancelAnimationFrame(praf);praf=requestAnimationFrame(ploop);
+  }
+  if(s.phase!=="run")running=false;
+  pphase=s.phase;
+  renderP();
+}
+function me0(){ME.pos=0;ME.vel=0;running=false}
+function renderP(){
+  var t="",pad=$("pad");
+  var mine=S&&S.players.filter(function(p){return p.id===ME.id})[0];
+  if(!S)t="Connecting…";
+  else if(S.phase==="lobby")t="You’re in, "+ME.name+"! Waiting for start…";
+  else if(S.phase==="count")t=mine&&mine.inRace?String(S.n||"Get ready…"):"Race starting…";
+  else if(S.phase==="run"){
+    if(mine&&!mine.inRace)t="Race in progress. You’re up next race!";
+    else t=ME.pos>=100?"You crossed the line!":"TAP TAP TAP!";
+  }else if(S.phase==="done"){
+    if(S.winner===ME.id)t="🏆 You win!";
+    else{var w=S.players.filter(function(p){return p.id===S.winner})[0];t=(w?w.name:"Someone")+" wins!"}
+  }
+  $("pstatus").textContent=t;
+  pad.disabled=!running;
+  pad.textContent=running?"TAP!":(S&&S.phase==="done"?"Race over":"…");
+  var w2=$("ptrack").clientWidth-44-$("prun").clientWidth;
+  $("prun").style.transform="translate("+(Math.min(ME.pos,100)/100*Math.max(w2,0))+"px,-50%)";
+  var rk="";
+  if(S&&(S.phase==="run"||S.phase==="done")&&mine&&mine.inRace){
+    var all=S.players.filter(function(p){return p.inRace});
+    var ahead=all.filter(function(p){return p.id!==ME.id&&p.pos>ME.pos}).length;
+    rk="Position: "+(ahead+1)+" of "+all.length;
+  }
+  $("prank").textContent=rk;
+}
+function ploop(t){
+  if(!running)return;
+  var dt=Math.min((t-pT)/1000,.05);pT=t;
+  ME.pos+=ME.vel*dt;ME.vel*=Math.exp(-1.5*dt);
+  var fin=false;
+  if(ME.pos>=100){ME.pos=100;ME.vel=0;running=false;fin=true}
+  if(fin||t-pl>90){pl=t;post("/api/pos",{room:CODE,id:ME.id,pos:Math.round(ME.pos*10)/10})}
+  renderP();
+  if(running)praf=requestAnimationFrame(ploop);
+}
+var pad=$("pad");
+pad.addEventListener("pointerdown",function(e){
+  e.preventDefault();
+  if(running){ME.vel+=4;try{navigator.vibrate&&navigator.vibrate(8)}catch(_){}}
+  pad.classList.add("hit");
+});
+["pointerup","pointercancel","pointerleave"].forEach(function(ev){pad.addEventListener(ev,function(){pad.classList.remove("hit")})});
+window.addEventListener("resize",function(){if(S)renderP()});
+})();
+</script>
+</body>
+</html>
